@@ -1,7 +1,7 @@
 const { Client, GatewayIntentBits } = require('discord.js');
-const { 
-    joinVoiceChannel, 
-    createAudioPlayer, 
+const {
+    joinVoiceChannel,
+    createAudioPlayer,
     createAudioResource,
     NoSubscriberBehavior
 } = require('@discordjs/voice');
@@ -11,38 +11,40 @@ const client = new Client({
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent,
-        GatewayIntentBits.GuildVoiceStates
+        GatewayIntentBits.GuildVoiceStates,
     ]
 });
 
-// 無音を流し続けるバッファ
-const SILENCE = Buffer.from([0xF8, 0xFF, 0xFE]);
+// 本物の無音（Discord公式もこれ使う）
+const SILENCE_FRAME = Buffer.from([0xF8, 0xFF, 0xFE]);
 
 client.on('messageCreate', async (message) => {
     if (message.content === '!join') {
         const channel = message.member.voice.channel;
-        if (!channel) return message.reply("先にボイスチャンネルに入ってください！");
+        if (!channel) return message.reply("先に VC に入ってください。");
 
         const connection = joinVoiceChannel({
             channelId: channel.id,
             guildId: channel.guild.id,
-            adapterCreator: channel.guild.voiceAdapterCreator
+            adapterCreator: channel.guild.voiceAdapterCreator,
+            selfMute: false,
+            selfDeaf: true,
         });
 
         const player = createAudioPlayer({
             behaviors: {
-                noSubscriber: NoSubscriberBehavior.Play
+                noSubscriber: NoSubscriberBehavior.Play,
             }
         });
 
-        // 無音を再生し続ける
+        // 無音フレームを連続的に送り続ける
         setInterval(() => {
-            const resource = createAudioResource(SILENCE);
+            const resource = createAudioResource(SILENCE_FRAME);
             player.play(resource);
-        }, 1000);
+        }, 500); // 0.5秒に1回 → 確実に活動扱い
 
         connection.subscribe(player);
-        message.reply("VC に入りました！（永遠に残ります）");
+        message.reply('VC に入り続けます！');
     }
 });
 
